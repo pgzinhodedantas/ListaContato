@@ -1,57 +1,250 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Filmes</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --panel-soft: #1f2937;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --primary: #8b5cf6;
+            --primary-dark: #7c3aed;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: rgba(148, 163, 184, 0.2);
+        }
 
-{% block title %}Contatos · Agenda{% endblock %}
+        * {
+            box-sizing: border-box;
+        }
 
-{% block content %}
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #020817, #111827 40%, #0f172a);
+            color: var(--text);
+        }
 
-<section class="topo-lista">
-  <h2>Contatos <span class="badge">{{ contatos | length }}</span></h2>
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 24px;
+        }
 
-  <form class="busca" method="GET" action="{{ url_for('index') }}">
-    <input type="text" name="busca" placeholder="Buscar por nome…" value="{{ busca }}">
-    <button type="submit">🔍</button>
-    {% if busca %}
-      <a href="{{ url_for('index') }}" class="btn-limpar">✕ Limpar</a>
-    {% endif %}
-  </form>
-</section>
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding: 16px 20px;
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
 
-{% if contatos %}
-  <table>
-    <thead>
-      <tr>
-        <th>Nome</th>
-        <th>E-mail</th>
-        <th>Telefone</th>
-        <th>Ações</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in contatos %}
-      <tr>
-        <td><strong>{{ c.nome }}</strong></td>
-        <td>{{ c.email or '—' }}</td>
-        <td>{{ c.telefone or '—' }}</td>
-        <td class="acoes">
-          <a href="{{ url_for('editar', id=c.id) }}" class="btn btn-editar">✏️ Editar</a>
-          <form method="POST" action="{{ url_for('deletar', id=c.id) }}"
-                onsubmit="return confirm('Remover {{ c.nome }}?')">
-            <button type="submit" class="btn btn-deletar">🗑️ Remover</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-{% else %}
-  <div class="vazio">
-    {% if busca %}
-      <p>Nenhum contato encontrado para "<strong>{{ busca }}</strong>".</p>
-    {% else %}
-      <p>Nenhum contato cadastrado ainda.</p>
-      <a href="{{ url_for('novo') }}" class="btn btn-novo">+ Adicionar primeiro contato</a>
-    {% endif %}
-  </div>
-{% endif %}
+        .eyebrow {
+            margin: 0 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            font-size: 0.74rem;
+        }
 
-{% endblock %}
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            text-decoration: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.96;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #334155;
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .flash-container {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .flash {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font-weight: 600;
+        }
+
+        .flash-success {
+            background: rgba(34, 197, 94, 0.14);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: #bbf7d0;
+        }
+
+        .flash-error {
+            background: rgba(239, 68, 68, 0.13);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 16px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(31, 41, 55, 0.9);
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        td {
+            color: var(--text);
+        }
+
+        tr:hover {
+            background: rgba(148, 163, 184, 0.04);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .delete-form {
+            margin: 0;
+        }
+
+        .empty-state {
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px 24px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        .empty-state h2 {
+            margin-top: 0;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            margin-top: 0;
+            margin-bottom: 18px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">Catálogo pessoal</p>
+                <h1>Filmes</h1>
+            </div>
+            <a href="{{ url_for('adicionar') }}" class="btn btn-primary">Adicionar filme</a>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if filmes %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Gênero</th>
+                            <th>Ano</th>
+                            <th>Nota</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for filme in filmes %}
+                            <tr>
+                                <td>{{ filme.titulo }}</td>
+                                <td>{{ filme.genero }}</td>
+                                <td>{{ filme.ano }}</td>
+                                <td>{{ filme.nota }}</td>
+                                <td class="actions">
+                                    <a href="{{ url_for('editar', id=filme.id) }}" class="btn btn-secondary">Editar</a>
+                                    <form action="{{ url_for('excluir', id=filme.id) }}" method="post" class="delete-form">
+                                        <button type="submit" class="btn btn-danger" onclick="return confirm('Deseja realmente excluir este filme?');">
+                                            Excluir
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <h2>Nenhum filme cadastrado</h2>
+                <p>Comece adicionando o primeiro título à sua lista.</p>
+                <a href="{{ url_for('adicionar') }}" class="btn btn-primary">Cadastrar filme</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

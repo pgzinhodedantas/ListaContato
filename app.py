@@ -3,129 +3,166 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = 'agenda-contatos-secret'
+app.secret_key = os.environ.get("SECRET_KEY", "chave-catalogo-filmes")
 
-DB_PATH = 'agenda.db'
-
-
-def get_db():
-    """Abre conexão com o banco de dados."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # resultados como dicionário
-    return conn
+# Caminho do banco de dados
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, "filmes.db")
 
 
-def init_db():
-    """Cria a tabela de contatos se ainda não existir."""
-    with get_db() as conn:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS contatos (
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome    TEXT    NOT NULL,
-                email   TEXT,
-                telefone TEXT,
-                criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.commit()
+# Conecta ao banco de dados
+def conectar_banco():
+    conexao = sqlite3.connect(DATABASE)
+    conexao.row_factory = sqlite3.Row
+    return conexao
 
 
-# ── Rotas ──────────────────────────────────────────────────────
+# Cria a tabela automaticamente
+def criar_tabela():
+    conexao = conectar_banco()
 
-@app.route('/')
+    conexao.execute("""
+        CREATE TABLE IF NOT EXISTS filmes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            genero TEXT NOT NULL,
+            ano INTEGER NOT NULL,
+            nota REAL NOT NULL CHECK (nota >= 1 AND nota <= 10)
+        )
+    """)
+
+    conexao.commit()
+    conexao.close()
+
+
+# Página inicial: listar filmes
+@app.route("/")
 def index():
-    """Lista todos os contatos."""
-    busca = request.args.get('busca', '').strip()
-    with get_db() as conn:
-        if busca:
-            contatos = conn.execute(
-                "SELECT * FROM contatos WHERE nome LIKE ? ORDER BY nome",
-                (f'%{busca}%',)
-            ).fetchall()
-        else:
-            contatos = conn.execute(
-                "SELECT * FROM contatos ORDER BY nome"
-            ).fetchall()
-    return render_template('index.html', contatos=contatos, busca=busca)
+    conexao = conectar_banco()
+
+    filmes = conexao.execute(
+        "SELECT * FROM filmes ORDER BY titulo"
+    ).fetchall()
+
+    conexao.close()
+
+    return render_template("index.html", filmes=filmes)
 
 
-@app.route('/novo', methods=['GET', 'POST'])
-def novo():
-    """Exibe formulário e salva novo contato."""
-    if request.method == 'POST':
-        nome     = request.form['nome'].strip()
-        email    = request.form.get('email', '').strip()
-        telefone = request.form.get('telefone', '').strip()
+# Cadastrar filme
+@app.route("/adicionar", methods=["GET", "POST"])
+def adicionar():
+    if request.method == "POST":
+        titulo = request.form.get("titulo", "").strip()
+        genero = request.form.get("genero", "").strip()
+        ano_texto = request.form.get("ano", "").strip()
+        nota_texto = request.form.get("nota", "").strip()
 
-        if not nome:
-            flash('O nome é obrigatório.', 'erro')
-            return render_template('form.html', contato=None)
+        try:
+            ano = int(ano_texto)
+            nota = float(nota_texto.replace(",", "."))
 
-        with get_db() as conn:
-            conn.execute(
-                "INSERT INTO contatos (nome, email, telefone) VALUES (?, ?, ?)",
-                (nome, email, telefone)
-            )
-            conn.commit()
+            if not titulo or not genero:
+                raise ValueError
 
-        flash(f'Contato "{nome}" adicionado com sucesso!', 'ok')
-        return redirect(url_for('index'))
+            if ano < 1888 or ano > 2100:
+                raise ValueError
 
-    return render_template('form.html', contato=None)
+            if not 1 <= nota <= 10:
+                raise ValueError
+
+        except ValueError:
+            flash("Preencha os campos corretamente.", "error")
+            return render_template("form.html", filme=None)
+
+        conexao = conectar_banco()
+
+        conexao.execute("""
+            INSERT INTO filmes (titulo, genero, ano, nota)
+            VALUES (?, ?, ?, ?)
+        """, (titulo, genero, ano, nota))
+
+        conexao.commit()
+        conexao.close()
+
+        flash("Filme cadastrado com sucesso!", "success")
+        return redirect(url_for("index"))
+
+    return render_template("form.html", filme=None)
 
 
-@app.route('/editar/<int:id>', methods=['GET', 'POST'])
+# Editar filme
+@app.route("/editar/<int:id>", methods=["GET", "POST"])
 def editar(id):
-    """Exibe formulário preenchido e salva edição."""
-    with get_db() as conn:
-        contato = conn.execute(
-            "SELECT * FROM contatos WHERE id = ?", (id,)
-        ).fetchone()
+    conexao = conectar_banco()
 
-    if contato is None:
-        flash('Contato não encontrado.', 'erro')
-        return redirect(url_for('index'))
+    filme = conexao.execute(
+        "SELECT * FROM filmes WHERE id = ?", (id,)
+    ).fetchone()
 
-    if request.method == 'POST':
-        nome     = request.form['nome'].strip()
-        email    = request.form.get('email', '').strip()
-        telefone = request.form.get('telefone', '').strip()
+    if filme is None:
+        conexao.close()
+        flash("Filme não encontrado.", "error")
+        return redirect(url_for("index"))
 
-        if not nome:
-            flash('O nome é obrigatório.', 'erro')
-            return render_template('form.html', contato=contato)
+    if request.method == "POST":
+        titulo = request.form.get("titulo", "").strip()
+        genero = request.form.get("genero", "").strip()
+        ano_texto = request.form.get("ano", "").strip()
+        nota_texto = request.form.get("nota", "").strip()
 
-        with get_db() as conn:
-            conn.execute(
-                "UPDATE contatos SET nome=?, email=?, telefone=? WHERE id=?",
-                (nome, email, telefone, id)
-            )
-            conn.commit()
+        try:
+            ano = int(ano_texto)
+            nota = float(nota_texto.replace(",", "."))
 
-        flash(f'Contato "{nome}" atualizado!', 'ok')
-        return redirect(url_for('index'))
+            if not titulo or not genero:
+                raise ValueError
 
-    return render_template('form.html', contato=contato)
+            if ano < 1888 or ano > 2100:
+                raise ValueError
+
+            if not 1 <= nota <= 10:
+                raise ValueError
+
+        except ValueError:
+            conexao.close()
+            flash("Preencha os campos corretamente.", "error")
+            return render_template("form.html", filme=filme)
+
+        conexao.execute("""
+            UPDATE filmes
+            SET titulo = ?, genero = ?, ano = ?, nota = ?
+            WHERE id = ?
+        """, (titulo, genero, ano, nota, id))
+
+        conexao.commit()
+        conexao.close()
+
+        flash("Filme atualizado com sucesso!", "success")
+        return redirect(url_for("index"))
+
+    conexao.close()
+    return render_template("form.html", filme=filme)
 
 
-@app.route('/deletar/<int:id>', methods=['POST'])
-def deletar(id):
-    """Remove um contato."""
-    with get_db() as conn:
-        contato = conn.execute(
-            "SELECT nome FROM contatos WHERE id = ?", (id,)
-        ).fetchone()
-        if contato:
-            conn.execute("DELETE FROM contatos WHERE id = ?", (id,))
-            conn.commit()
-            flash(f'Contato "{contato["nome"]}" removido.', 'ok')
-        else:
-            flash('Contato não encontrado.', 'erro')
-    return redirect(url_for('index'))
+# Excluir filme
+@app.route("/excluir/<int:id>", methods=["POST"])
+def excluir(id):
+    conexao = conectar_banco()
+
+    conexao.execute(
+        "DELETE FROM filmes WHERE id = ?", (id,)
+    )
+
+    conexao.commit()
+    conexao.close()
+
+    flash("Filme excluído com sucesso!", "success")
+    return redirect(url_for("index"))
 
 
-# ── Inicialização ──────────────────────────────────────────────
+# Cria o banco e inicia o servidor
+criar_tabela()
 
-if __name__ == '__main__':
-    init_db()
+if __name__ == "__main__":
     app.run(debug=True)

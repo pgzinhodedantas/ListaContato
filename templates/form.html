@@ -1,41 +1,215 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Editar filme' if filme else 'Cadastrar filme' }}</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #111827;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --primary: #8b5cf6;
+            --secondary: #334155;
+            --danger: #ef4444;
+            --border: rgba(148, 163, 184, 0.2);
+            --input: rgba(15, 23, 42, 0.8);
+        }
 
-{% block title %}{{ 'Editar' if contato else 'Novo' }} Contato · Agenda{% endblock %}
+        * {
+            box-sizing: border-box;
+        }
 
-{% block content %}
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #020817, #111827 40%, #0f172a);
+            color: var(--text);
+        }
 
-<div class="card-form">
-  <h2>{{ '✏️ Editar Contato' if contato else '➕ Novo Contato' }}</h2>
+        .container {
+            max-width: 720px;
+            margin: 60px auto;
+            padding: 24px;
+        }
 
-  <form method="POST">
-    <div class="campo">
-      <label for="nome">Nome <span class="obrigatorio">*</span></label>
-      <input type="text" id="nome" name="nome"
-             value="{{ contato.nome if contato else '' }}"
-             placeholder="Nome completo" required autofocus>
+        .panel {
+            background: rgba(17, 24, 39, 0.92);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+            padding: 28px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .eyebrow {
+            margin: 0 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            font-size: 0.75rem;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 18px;
+            text-decoration: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            opacity: 0.96;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .flash-container {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .flash {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font-weight: 600;
+        }
+
+        .flash-success {
+            background: rgba(34, 197, 94, 0.14);
+            border-color: rgba(34, 197, 94, 0.35);
+            color: #bbf7d0;
+        }
+
+        .flash-error {
+            background: rgba(239, 68, 68, 0.13);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #fecaca;
+        }
+
+        .movie-form {
+            display: grid;
+            gap: 20px;
+        }
+
+        .field-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        input {
+            width: 100%;
+            background: var(--input);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: 2px solid rgba(139, 92, 246, 0.5);
+            border-color: rgba(139, 92, 246, 0.7);
+        }
+
+        .two-columns {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">{{ 'Edição' if filme else 'Cadastro' }}</p>
+                    <h1>{{ 'Editar filme' if filme else 'Cadastrar filme' }}</h1>
+                </div>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+            </header>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="flash flash-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="post" class="movie-form" action="{{ url_for('editar', id=filme.id) if filme else url_for('adicionar') }}">
+                <div class="field-group">
+                    <label for="titulo">Título</label>
+                    <input id="titulo" name="titulo" type="text" value="{{ filme.titulo if filme else '' }}" required>
+                </div>
+
+                <div class="field-group">
+                    <label for="genero">Gênero</label>
+                    <input id="genero" name="genero" type="text" value="{{ filme.genero if filme else '' }}" required>
+                </div>
+
+                <div class="two-columns">
+                    <div class="field-group">
+                        <label for="ano">Ano</label>
+                        <input id="ano" name="ano" type="number" min="1888" max="2100" value="{{ filme.ano if filme else '' }}" required>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="nota">Nota</label>
+                        <input id="nota" name="nota" type="number" min="1" max="10" step="0.1" value="{{ filme.nota if filme else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">{{ 'Salvar alterações' if filme else 'Cadastrar' }}</button>
+                </div>
+            </form>
+        </div>
     </div>
-
-    <div class="campo">
-      <label for="email">E-mail</label>
-      <input type="email" id="email" name="email"
-             value="{{ contato.email if contato else '' }}"
-             placeholder="exemplo@email.com">
-    </div>
-
-    <div class="campo">
-      <label for="telefone">Telefone</label>
-      <input type="tel" id="telefone" name="telefone"
-             value="{{ contato.telefone if contato else '' }}"
-             placeholder="(84) 99999-9999">
-    </div>
-
-    <div class="acoes-form">
-      <button type="submit" class="btn btn-salvar">
-        {{ '💾 Salvar alterações' if contato else '✅ Adicionar contato' }}
-      </button>
-      <a href="{{ url_for('index') }}" class="btn btn-cancelar">Cancelar</a>
-    </div>
-  </form>
-</div>
-
-{% endblock %}
+</body>
+</html>
